@@ -69,6 +69,17 @@ app.get("/api/getProducts/:productId", async (req, res) => {
     }
 });
 
+app.get("/api/getAllProducts", async (req, res) => {
+    try {
+        const products =  await db
+        .select().from(productsTable);
+        res.status(200).json(products);
+    } catch (error) {
+        console.error("Error fetching products:", error);
+        res.status(500).json({error: "Failed to fetch products", details: error.message});
+    }
+});
+
 app.listen(PORT, () => {
     console.log("Server started on port:", PORT);
 });
