@@ -144,6 +144,19 @@ app.post("/api/createProductionEntry", async (req, res) => {
             return res.status(400).json({error: "Missing required fields: productId, processId, workerName, shiftStartTime, shiftEndTime, unitsProduced"});
         }
         
+        // Parse date (use provided date or current date)
+        const entryDate = date ? new Date(date) : new Date();
+        const dateString = entryDate.toISOString().split('T')[0]; // Get YYYY-MM-DD format
+        
+        // Combine date with time strings to create valid ISO datetime strings
+        const startDateTime = new Date(`${dateString}T${shiftStartTime}:00Z`);
+        const endDateTime = new Date(`${dateString}T${shiftEndTime}:00Z`);
+        
+        // Validate the parsed dates
+        if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+            return res.status(400).json({error: "Invalid time format. Please use HH:MM format for times"});
+        }
+        
         const newEntry = await db
         .insert(productionEntryTable)
         .values({
@@ -151,9 +164,9 @@ app.post("/api/createProductionEntry", async (req, res) => {
             processId: Number(processId),
             machineId: machineId ? Number(machineId) : null,
             workerName,
-            shiftStartTime: new Date(shiftStartTime),
-            shiftEndTime: new Date(shiftEndTime),
-            date: date ? new Date(date) : new Date(),
+            shiftStartTime: startDateTime,
+            shiftEndTime: endDateTime,
+            date: entryDate,
             unitsProduced: Number(unitsProduced)
         }).returning();
         
