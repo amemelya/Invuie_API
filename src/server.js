@@ -1,7 +1,7 @@
 import express from "express";
 import {ENV} from "./config/env.js";
 import {db} from "./config/db.js";
-import { productsTable } from "./db/schema.js";
+import { productsTable, processesTable } from "./db/schema.js";
 import { eq } from "drizzle-orm";
 import job from "./config/cron.js"; 
 
@@ -77,6 +77,19 @@ app.get("/api/getAllProducts", async (req, res) => {
     } catch (error) {
         console.error("Error fetching products:", error);
         res.status(500).json({error: "Failed to fetch products", details: error.message});
+    }
+});
+
+app.get("/api/getprocess/:productId", async (req, res) => {
+    try {
+        const {productId} = req.params;
+        const processes = await db
+        .select().from(processesTable)
+        .where(eq(processesTable.productId, Number(productId)));
+        res.status(200).json(processes);
+    } catch (error) {
+        console.error("Error fetching processes:", error);
+        res.status(500).json({error: "Failed to fetch processes", details: error.message});
     }
 });
 
