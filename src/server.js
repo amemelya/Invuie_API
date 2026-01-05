@@ -1,7 +1,7 @@
 import express from "express";
 import {ENV} from "./config/env.js";
 import {db} from "./config/db.js";
-import { productsTable, processesTable } from "./db/schema.js";
+import { productsTable, processesTable, productProcessMappingTable, machinesTable, machineProcessMappingTable, productionEntryTable } from "./db/schema.js";
 import { eq } from "drizzle-orm";
 import job from "./config/cron.js"; 
 
@@ -83,13 +83,84 @@ app.get("/api/getAllProducts", async (req, res) => {
 app.get("/api/getprocess/:productId", async (req, res) => {
     try {
         const {productId} = req.params;
+        const mappings = await db
+        .select({ processId: productProcessMappingTable.processId }).from(productProcessMappingTable)
+        .where(eq(productProcessMappingTable.productId, Number(productId)));
+        
+        if (mappings.length === 0) {
+            return res.status(200).json([]);
+        }
+        
+        const processIds = mappings.map(m => m.processId);
         const processes = await db
         .select().from(processesTable)
-        .where(eq(processesTable.productId, Number(productId)));
+        .where(processesTable.id.inArray(processIds));
+        
         res.status(200).json(processes);
     } catch (error) {
         console.error("Error fetching processes:", error);
         res.status(500).json({error: "Failed to fetch processes", details: error.message});
+    }
+});
+
+app.get("/api/getMachines/:processId", async (req, res) => {
+    try {
+        const {processId} = req.params;
+        
+        // Check if process exists
+        const process = await db
+        .select().from(processesTable)
+        .where(eq(processesTable.id, Number(processId)));
+        
+        if (process.length === 0) {
+            return res.status(404).json({error: "Process not found"});
+        }
+        
+        const mappings = await db
+        .select({ machineId: machineProcessMappingTable.machineId }).from(machineProcessMappingTable)
+        .where(eq(machineProcessMappingTable.processId, Number(processId)));
+        
+        if (mappings.length === 0) {
+            return res.status(200).json({message: "No machines available for this process", machines: []});
+        }
+        
+        const machineIds = mappings.map(m => m.machineId);
+        const machines = await db
+        .select().from(machinesTable)
+        .where(machinesTable.id.inArray(machineIds));
+        
+        res.status(200).json({machines: machines});
+    } catch (error) {
+        console.error("Error fetching machines:", error);
+        res.status(500).json({error: "Failed to fetch machines", details: error.message});
+    }
+});
+
+app.post("/api/createProductionEntry", async (req, res) => {
+    try {
+        const {productId, processId, machineId, workerName, shiftStartTime, shiftEndTime, unitsProduced, date} = req.body;
+        
+        if (!productId || !processId || !workerName || !shiftStartTime || !shiftEndTime || !unitsProduced) {
+            return res.status(400).json({error: "Missing required fields: productId, processId, workerName, shiftStartTime, shiftEndTime, unitsProduced"});
+        }
+        
+        const newEntry = await db
+        .insert(productionEntryTable)
+        .values({
+            productId: Number(productId),
+            processId: Number(processId),
+            machineId: machineId ? Number(machineId) : null,
+            workerName,
+            shiftStartTime: new Date(shiftStartTime),
+            shiftEndTime: new Date(shiftEndTime),
+            date: date ? new Date(date) : new Date(),
+            unitsProduced: Number(unitsProduced)
+        }).returning();
+        
+        res.status(201).json(newEntry[0]);
+    } catch (error) {
+        console.error("Error creating production entry:", error);
+        res.status(500).json({error: "Failed to create production entry", details: error.message});
     }
 });
 
