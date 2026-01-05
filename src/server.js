@@ -2,7 +2,7 @@ import express from "express";
 import {ENV} from "./config/env.js";
 import {db} from "./config/db.js";
 import { productsTable, processesTable, productProcessMappingTable, machinesTable, machineProcessMappingTable, productionEntryTable } from "./db/schema.js";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import job from "./config/cron.js"; 
 
 
@@ -94,7 +94,7 @@ app.get("/api/getprocess/:productId", async (req, res) => {
         const processIds = mappings.map(m => m.processId);
         const processes = await db
         .select().from(processesTable)
-        .where(processesTable.id.inArray(processIds));
+        .where(inArray(processesTable.id, processIds));
         
         res.status(200).json(processes);
     } catch (error) {
@@ -127,7 +127,7 @@ app.get("/api/getMachines/:processId", async (req, res) => {
         const machineIds = mappings.map(m => m.machineId);
         const machines = await db
         .select().from(machinesTable)
-        .where(machinesTable.id.inArray(machineIds));
+        .where(inArray(machinesTable.id, machineIds));
         
         res.status(200).json({machines: machines});
     } catch (error) {
