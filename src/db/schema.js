@@ -65,5 +65,6 @@ export const productionEntryTable = pgTable("production_entry", {
         shiftEndTime: timestamp("shift_end_time").notNull(),
         date: timestamp("date").defaultNow().notNull(),
         unitsProduced: integer("units_produced").notNull(),
+        productionIssueReason: text("production_issue_reason"),
         createdAt: timestamp("created_at").defaultNow().notNull(),
 });
