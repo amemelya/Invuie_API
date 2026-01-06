@@ -138,7 +138,7 @@ app.get("/api/getMachines/:processId", async (req, res) => {
 
 app.post("/api/createProductionEntry", async (req, res) => {
     try {
-        const {productId, processId, machineId, workerName, shiftStartTime, shiftEndTime, unitsProduced, date} = req.body;
+        const {productId, processId, machineId, workerName, shiftStartTime, shiftEndTime, unitsProduced, date, productionIssueReason} = req.body;
         
         if (!productId || !processId || !workerName || !shiftStartTime || !shiftEndTime || !unitsProduced) {
             return res.status(400).json({error: "Missing required fields: productId, processId, workerName, shiftStartTime, shiftEndTime, unitsProduced"});
@@ -157,6 +157,18 @@ app.post("/api/createProductionEntry", async (req, res) => {
             return res.status(400).json({error: "Invalid time format. Please use HH:MM format for times"});
         }
         
+        // Handle productionIssueReason - can be a string or array of strings
+        let reasonValue = null;
+        if (productionIssueReason) {
+            if (Array.isArray(productionIssueReason)) {
+                // If it's an array, store as JSON
+                reasonValue = JSON.stringify(productionIssueReason);
+            } else if (typeof productionIssueReason === 'string') {
+                // If it's a string, store as is
+                reasonValue = productionIssueReason;
+            }
+        }
+        
         const newEntry = await db
         .insert(productionEntryTable)
         .values({
@@ -167,7 +179,8 @@ app.post("/api/createProductionEntry", async (req, res) => {
             shiftStartTime: startDateTime,
             shiftEndTime: endDateTime,
             date: entryDate,
-            unitsProduced: Number(unitsProduced)
+            unitsProduced: Number(unitsProduced),
+            productionIssueReason: reasonValue
         }).returning();
         
         res.status(201).json(newEntry[0]);
